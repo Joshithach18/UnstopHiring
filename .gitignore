@@ -1,0 +1,4 @@
+__pycache__/
+nltk_data/
+.matplotlib/
+*.pdf
