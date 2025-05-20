@@ -4,6 +4,7 @@ import pdfplumber
 from nltk.corpus import stopwords
 from transformers import pipeline, AutoTokenizer, AutoModelForSequenceClassification
 import cohere
+import io
 
 class ResumeScreener:
     def __init__(self):
@@ -13,7 +14,7 @@ class ResumeScreener:
 
     def extract_text_from_pdf(self, pdf_file):
         text = ""
-        with pdfplumber.open(pdf_file) as pdf:
+        with pdfplumber.open(io.BytesIO(pdf_file)) as pdf:
             for page in pdf.pages:
                 text += page.extract_text() or ""
         return text
