@@ -8,9 +8,11 @@ import io
 
 class ResumeScreener:
     def __init__(self):
+        nltk.download('punkt')
+        nltk.download('stopwords')
         self.stop_words = set(stopwords.words('english'))
         self.cohere_api_key = "QU0eJVAl4MbACkDCy9WPN640qiViL1po6Z6kPr8S"
-        self.cohere_client = None
+        self.cohere_client = cohere.Client(self.cohere_api_key)
 
     def extract_text_from_pdf(self, pdf_file):
         text = ""
@@ -25,22 +27,17 @@ class ResumeScreener:
         return set(keywords)
 
     def extract_skills_from_resume(self, resume_text):
-        if self.cohere_client is None:
-            self.cohere_client = cohere.Client(self.cohere_api_key)
-
         prompt = f"""
         Extract all the skills from the following resume text. Only return a list of skills without any additional text:
 
         {resume_text}
         """
-
         response = self.cohere_client.generate(
             prompt=prompt,
             max_tokens=300,
             model="command-light",
             temperature=0.2
         )
-
         return response.generations[0].text.strip()
 
     def calculate_match_score(self, job_keywords, resume_skills):
@@ -54,9 +51,6 @@ class ResumeScreener:
         extracted_skills = self.extract_skills_from_resume(resume_text)
         match_score = self.calculate_match_score(job_keywords, extracted_skills)
 
-        if self.cohere_client is None:
-            self.cohere_client = cohere.Client(self.cohere_api_key)
-
         prompt = f"""
         Based on this resume text and job description:
 
@@ -69,7 +63,6 @@ class ResumeScreener:
         2. Areas where the candidate may lack required skills
         3. Overall recommendation (Strongly Recommend, Recommend, Consider, Not Recommended)
         """
-
         response = self.cohere_client.generate(
             prompt=prompt,
             max_tokens=500,
@@ -90,25 +83,17 @@ class ResumeScreener:
 
 class SentimentAnalyzer:
     def __init__(self):
-        self.tokenizer = None
-        self.model = None
-        self.sentiment_pipeline = None
+        self.tokenizer = AutoTokenizer.from_pretrained("cardiffnlp/twitter-roberta-base-sentiment-latest")
+        self.model = AutoModelForSequenceClassification.from_pretrained("cardiffnlp/twitter-roberta-base-sentiment-latest")
+        self.sentiment_pipeline = pipeline("sentiment-analysis", model=self.model, tokenizer=self.tokenizer)
         self.cohere_api_key = "QU0eJVAl4MbACkDCy9WPN640qiViL1po6Z6kPr8S"
-        self.cohere_client = None
+        self.cohere_client = cohere.Client(self.cohere_api_key)
 
     def analyze_sentiment(self, feedback):
-        if self.sentiment_pipeline is None:
-            self.tokenizer = AutoTokenizer.from_pretrained("cardiffnlp/twitter-roberta-base-sentiment-latest")
-            self.model = AutoModelForSequenceClassification.from_pretrained("cardiffnlp/twitter-roberta-base-sentiment-latest")
-            self.sentiment_pipeline = pipeline("sentiment-analysis", model=self.model, tokenizer=self.tokenizer)
-
         result = self.sentiment_pipeline(feedback)
         return result[0]
 
     def generate_recommendations(self, feedback, sentiment_score):
-        if self.cohere_client is None:
-            self.cohere_client = cohere.Client(self.cohere_api_key)
-
         sentiment_label = "positive" if sentiment_score > 0.5 else "negative"
         prompt = f"""Based on the following employee feedback (classified as {sentiment_label}):"{feedback}"
 
@@ -131,12 +116,11 @@ class SentimentAnalyzer:
             return "Unable to generate recommendations."
 
     def extract_risk_from_text(self, recommendations_text):
-        risk = "Medium"
         lowered = recommendations_text.lower()
         if "attrition risk: low" in lowered or "low attrition risk" in lowered:
-            risk = "Low"
+            return "Low"
         elif "attrition risk: high" in lowered or "high attrition risk" in lowered:
-            risk = "High"
+            return "High"
         elif "attrition risk: medium" in lowered or "medium attrition risk" in lowered:
-            risk = "Medium"
-        return risk
+            return "Medium"
+        return "Medium"
