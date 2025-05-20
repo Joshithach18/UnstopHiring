@@ -1,6 +1,7 @@
-numpy
+fastapi
+uvicorn
 pandas
-streamlit
+numpy
 nltk
 pdfplumber
 requests
@@ -10,3 +11,4 @@ matplotlib
 seaborn
 scikit-learn
 plotly
+streamlit
