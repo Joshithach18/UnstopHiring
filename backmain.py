@@ -11,7 +11,7 @@ class ResumeScreener:
         nltk.download('punkt')
         nltk.download('stopwords')
         self.stop_words = set(stopwords.words('english'))
-        self.cohere_api_key = "QU0eJVAl4MbACkDCy9WPN640qiViL1po6Z6kPr8S"
+        self.cohere_api_key = "9VghDoy9ruMpJezQOdgTiThAAeWZl1wlmLkfmksA"
         self.cohere_client = cohere.Client(self.cohere_api_key)
 
     def extract_text_from_pdf(self, pdf_file):
@@ -86,7 +86,7 @@ class SentimentAnalyzer:
         self.tokenizer = AutoTokenizer.from_pretrained("cardiffnlp/twitter-roberta-base-sentiment-latest")
         self.model = AutoModelForSequenceClassification.from_pretrained("cardiffnlp/twitter-roberta-base-sentiment-latest")
         self.sentiment_pipeline = pipeline("sentiment-analysis", model=self.model, tokenizer=self.tokenizer)
-        self.cohere_api_key = "QU0eJVAl4MbACkDCy9WPN640qiViL1po6Z6kPr8S"
+        self.cohere_api_key = "9VghDoy9ruMpJezQOdgTiThAAeWZl1wlmLkfmksA"
         self.cohere_client = cohere.Client(self.cohere_api_key)
 
     def analyze_sentiment(self, feedback):
