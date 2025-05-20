@@ -12,3 +12,4 @@ seaborn
 scikit-learn
 plotly
 streamlit
+python-multipart
