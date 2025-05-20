@@ -1,45 +1,15 @@
-import sys
-print("Running Python version:", sys.version)
-print("Executable path:", sys.executable)
-
-import numpy as np
-import pandas as pd
-import streamlit as st
+import nltk
 import re
 import pdfplumber
-import io
-import requests
+from nltk.corpus import stopwords
 from transformers import pipeline, AutoTokenizer, AutoModelForSequenceClassification
 import cohere
-import matplotlib.pyplot as plt
-import seaborn as sns
-from sklearn.feature_extraction.text import CountVectorizer
-import nltk
-from nltk.corpus import stopwords
-import json
-import base64
-import plotly.express as px
-import plotly.graph_objects as go
-from collections import Counter
-import warnings
-
-warnings.filterwarnings('ignore')
-
-try:
-    nltk.data.find('tokenizers/punkt')
-except LookupError:
-    nltk.download('punkt')
-
-try:
-    nltk.data.find('corpora/stopwords')
-except LookupError:
-    nltk.download('stopwords')
 
 class ResumeScreener:
     def __init__(self):
         self.stop_words = set(stopwords.words('english'))
         self.cohere_api_key = "QU0eJVAl4MbACkDCy9WPN640qiViL1po6Z6kPr8S"
-        self.cohere_client = cohere.Client(self.cohere_api_key)
+        self.cohere_client = None
 
     def extract_text_from_pdf(self, pdf_file):
         text = ""
@@ -54,6 +24,9 @@ class ResumeScreener:
         return set(keywords)
 
     def extract_skills_from_resume(self, resume_text):
+        if self.cohere_client is None:
+            self.cohere_client = cohere.Client(self.cohere_api_key)
+
         prompt = f"""
         Extract all the skills from the following resume text. Only return a list of skills without any additional text:
 
@@ -80,6 +53,9 @@ class ResumeScreener:
         extracted_skills = self.extract_skills_from_resume(resume_text)
         match_score = self.calculate_match_score(job_keywords, extracted_skills)
 
+        if self.cohere_client is None:
+            self.cohere_client = cohere.Client(self.cohere_api_key)
+
         prompt = f"""
         Based on this resume text and job description:
 
@@ -91,7 +67,6 @@ class ResumeScreener:
         1. Key strengths matching the job requirements
         2. Areas where the candidate may lack required skills
         3. Overall recommendation (Strongly Recommend, Recommend, Consider, Not Recommended)
-
         """
 
         response = self.cohere_client.generate(
@@ -104,11 +79,7 @@ class ResumeScreener:
         try:
             analysis = response.generations[0].text
         except:
-            analysis = {
-                "strengths": "Unable to parse strengths",
-                "gaps": "Unable to parse gaps",
-                "recommendation": "Unable to determine recommendation"
-            }
+            analysis = "Unable to analyze resume."
 
         return {
             "extracted_skills": extracted_skills,
@@ -118,40 +89,48 @@ class ResumeScreener:
 
 class SentimentAnalyzer:
     def __init__(self):
-        self.tokenizer = AutoTokenizer.from_pretrained("cardiffnlp/twitter-roberta-base-sentiment-latest")
-        self.model = AutoModelForSequenceClassification.from_pretrained("cardiffnlp/twitter-roberta-base-sentiment-latest")
-        self.sentiment_pipeline = pipeline("sentiment-analysis", model=self.model, tokenizer=self.tokenizer)
+        self.tokenizer = None
+        self.model = None
+        self.sentiment_pipeline = None
         self.cohere_api_key = "QU0eJVAl4MbACkDCy9WPN640qiViL1po6Z6kPr8S"
-        self.cohere_client = cohere.Client(self.cohere_api_key)
+        self.cohere_client = None
 
     def analyze_sentiment(self, feedback):
+        if self.sentiment_pipeline is None:
+            self.tokenizer = AutoTokenizer.from_pretrained("cardiffnlp/twitter-roberta-base-sentiment-latest")
+            self.model = AutoModelForSequenceClassification.from_pretrained("cardiffnlp/twitter-roberta-base-sentiment-latest")
+            self.sentiment_pipeline = pipeline("sentiment-analysis", model=self.model, tokenizer=self.tokenizer)
+
         result = self.sentiment_pipeline(feedback)
         return result[0]
 
     def generate_recommendations(self, feedback, sentiment_score):
+        if self.cohere_client is None:
+            self.cohere_client = cohere.Client(self.cohere_api_key)
+
         sentiment_label = "positive" if sentiment_score > 0.5 else "negative"
         prompt = f"""Based on the following employee feedback (classified as {sentiment_label}):"{feedback}"
 
-    Provide a plain-text analysis with:
-    - Key issues (if any)
-    - Recommendations for HR
-    - Estimated attrition risk (mention clearly: Low, Medium, or High)
+        Provide a plain-text analysis with:
+        - Key issues (if any)
+        - Recommendations for HR
+        - Estimated attrition risk (mention clearly: Low, Medium, or High)
 
-    Keep the response clear and human-readable.
-    """
+        Keep the response clear and human-readable.
+        """
         response = self.cohere_client.generate(
-        prompt=prompt,
-        max_tokens=500,
-        model="command-light",
-        temperature=0.2
-    )
+            prompt=prompt,
+            max_tokens=500,
+            model="command-light",
+            temperature=0.2
+        )
         try:
-            recommendations = response.generations[0].text.strip()
+            return response.generations[0].text.strip()
         except:
-            recommendations = "Unable to generate recommendations."
-        return recommendations
-    def extract_risk_from_text(self,recommendations_text):
-        risk = "Medium"  # default
+            return "Unable to generate recommendations."
+
+    def extract_risk_from_text(self, recommendations_text):
+        risk = "Medium"
         lowered = recommendations_text.lower()
         if "attrition risk: low" in lowered or "low attrition risk" in lowered:
             risk = "Low"
