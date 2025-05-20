@@ -2,17 +2,17 @@ from fastapi import FastAPI, UploadFile, File, Form
 from backmain import ResumeScreener, SentimentAnalyzer
 
 app = FastAPI()
-
 @app.post("/analyze_resume/")
 async def analyze_resume_api(job_description: str = Form(...), file: UploadFile = File(...)):
-    content = await file.read()
-    with open("temp_resume.pdf", "wb") as f:
-        f.write(content)
-    
-    resume_screener = ResumeScreener()  # ✅ Load here, not globally
-    resume_text = resume_screener.extract_text_from_pdf("temp_resume.pdf")
-    result = resume_screener.analyze_resume(resume_text, job_description)
-    return result
+    resume_screener=ResumeScreener()
+    try:
+        content = await file.read()
+        resume_text = resume_screener.extract_text_from_pdf(content)
+        result = resume_screener.analyze_resume(resume_text, job_description)
+        return result
+    except Exception as e:
+        return {"error": str(e)}
+
 
 @app.post("/analyze_sentiment/")
 async def analyze_sentiment_api(feedback: str = Form(...)):
